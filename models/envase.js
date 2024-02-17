@@ -26,7 +26,7 @@ Envase.init(
     },
     {
         sequelize: connection,
-        modelName: "Lote",
+        modelName: "Envase",
     }
 );
 

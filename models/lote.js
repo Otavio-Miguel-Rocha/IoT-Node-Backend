@@ -26,7 +26,12 @@ Lote.init(
     origem: {
         type: DataTypes.STRING,
         allowNull: false,
-      },
+    },
+    utilizado: {
+      type: DataTypes.BOOLEAN,
+      defaultValue: false,
+  
+    }
   },
   {
     sequelize: connection,
