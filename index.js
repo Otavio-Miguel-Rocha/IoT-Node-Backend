@@ -2,6 +2,7 @@
 require("./database/connection");
 Lote = require("./models/lote");
 Envase = require("./models/envase")
+const Sequelize = require('sequelize');
 // -------------------------------------------------------
 
 // MQTT
@@ -15,21 +16,33 @@ client.on('connect', () => {
     client.subscribe('caixa-envasada');
 });
 
+
+
 client.on('message', async (topic, message) => {
     if (topic === 'leite-informacoes-setor-2') {
         await Lote.create(JSON.parse(message.toString()));
     }
+
+
     if (topic === 'caixa-envasada') {
         console.log(message.toString());
+
+
+        
         let sensor = JSON.parse(message.toString());
 
         let updatedEnvase =
             await Envase.findOne({
                 where: {
-                    tipo: sensor.tipo
+                    tipo: sensor.tipo,
+                    quantidadeEnvasada: {
+                        [Sequelize.Op.lt]: Sequelize.col('quantidadeFinal')
+                    }
                 },
             })
-        updatedEnvase.quantidadeEnvasada += 1;
+        if(updatedEnvase.quantidadeEnvasada < updatedEnvase.quantidadeFinal){
+            updatedEnvase.quantidadeEnvasada += 1;
+        }
         await updatedEnvase.save();
 
         wss.clients.forEach(client => {
@@ -60,10 +73,10 @@ app.listen(3000, () => console.log(`API rodando na porta ${3000}`));
 app.get(`/leites-informacoes`, async (_, res) => {
     //Lista que será retornada para a tela inicial do front
     let returnedList = [
-        { quantidadeLeite: 0, tipo: "INTEGRAL" },
-        { quantidadeLeite: 0, tipo: "SEMIDESNATADO" },
-        { quantidadeLeite: 0, tipo: "DESNATADO" },
-        { quantidadeLeite: 0, tipo: "SEM LACTOSE" },
+        { quantidadeLeite: 0, tipo: "INTEGRAL", origem: "" },
+        { quantidadeLeite: 0, tipo: "SEMIDESNATADO", origem: "" },
+        { quantidadeLeite: 0, tipo: "DESNATADO", origem: "" },
+        { quantidadeLeite: 0, tipo: "SEM LACTOSE", origem: "" },
     ];
     let lotes = await Lote.findAll();
 
@@ -82,10 +95,14 @@ app.get(`/leites-informacoes`, async (_, res) => {
             }
             if (index >= 0 && index <= 3) {
                 returnedList[index].quantidadeLeite += lote.quantidadeLeite;
+                if(lote.quantidadeLeite > 0){
+                    returnedList[index].origem = lote.origem;
+                }
             }
         }
     })
     return res.status(200).json(returnedList);
+    
 });
 
 app.get(`/envase-existente`, async (req, res) => {
@@ -115,14 +132,17 @@ app.put(`/iniciar-processo`, async (req, res) => {
 
     let processoJaExistente = false;
     for (const envase of validacaoEnvases) {
-        if (envase.quantidadeEnvasada != envase.quantidadeFinal) {
+        if (envase.quantidadeEnvasada < envase.quantidadeFinal) {
             processoJaExistente = true;
         }
     }
 
     if (!processoJaExistente) {
-        let lotes = await Lote.findAll();
-
+        let lotes = await Lote.findAll({
+            where: {
+                utilizado: false
+            }
+        });
 
         let loteTipoEspecifico = lotes.filter(lote => lote.tipo == req.query.tipo);
         if (!loteTipoEspecifico) {
@@ -141,7 +161,9 @@ app.put(`/iniciar-processo`, async (req, res) => {
         let novoEnvase = {
             quantidadeFinal: somaTotal,
             quantidadeEnvasada: 0,
-            tipo: req.query.tipo
+            tipo: req.query.tipo,
+            origem: loteTipoEspecifico[0].origem,
+            dataOrdenha: loteTipoEspecifico[0].dataOrdenha
         }
 
         await Envase.create(novoEnvase);

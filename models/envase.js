@@ -19,6 +19,14 @@ Envase.init(
             type: DataTypes.NUMBER,
             allowNull: false,
         },
+        dataOrdenha: {
+            type: DataTypes.STRING,
+            allowNull: false,
+        },
+        origem: {
+            type: DataTypes.STRING,
+            allowNull: false,
+        },
         tipo: {
             type: DataTypes.ENUM("INTEGRAL", "SEMIDESNATADO", "DESNATADO", "SEM LACTOSE"),
             allowNull: false,
