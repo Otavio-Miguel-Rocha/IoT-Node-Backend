@@ -14,6 +14,7 @@ const client = mqtt.connect('mqtt://broker.mqttdashboard.com', mqtt_especificaco
 client.on('connect', () => {
     client.subscribe('leite-informacoes-setor-2');
     client.subscribe('caixa-envasada');
+    client.subscribe('quantidade-leite-envasado-2');
 });
 
 
@@ -71,6 +72,7 @@ app.listen(3000, () => console.log(`API rodando na porta ${3000}`));
 //REQUISIÇÕES / LÓGICA
 
 app.get(`/leites-informacoes`, async (_, res) => {
+    console.log("ENTROU");
     //Lista que será retornada para a tela inicial do front
     let returnedList = [
         { quantidadeLeite: 0, tipo: "INTEGRAL", origem: "" },
@@ -101,8 +103,8 @@ app.get(`/leites-informacoes`, async (_, res) => {
             }
         }
     })
+    console.log(returnedList);
     return res.status(200).json(returnedList);
-    
 });
 
 app.get(`/envase-existente`, async (req, res) => {
@@ -179,6 +181,23 @@ app.put(`/iniciar-processo`, async (req, res) => {
     return res.status(409).json("Processo já em andamento!");
 });
 
+
+
+
+app.put(`/enviar-setor-5`, async (req, res) => {
+    console.log(req.query.idEnvase);
+    let envaseFinalizado = await Envase.findOne({
+        where: {
+            id: req.query.idEnvase
+        },
+    });
+    let finaObject = {
+        quantidadeLeite: envaseFinalizado.quantidadeFinal,
+        tipo: envaseFinalizado.tipo,
+    }
+    client.publish('quantidade-leite-envasado-2', JSON.stringify(finaObject));
+    return res.status(200).json("Enviado para o setor 5!");
+});
 
 //WEB SOCKET
 const WebSocket = require('ws');
